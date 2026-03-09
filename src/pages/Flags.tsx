@@ -6,14 +6,17 @@ import { ArrowLeft, Check, X } from "lucide-react";
 import { useCountries } from "@/hooks/useCountries";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { GameResult } from "@/components/GameResult";
-import { getLargeFlagUrl } from "@/lib/utils";
+import { getLargeFlagUrl, shuffleArray } from "@/lib/utils";
 import { Country } from "@/types/Country";
 
 const Flags = () => {
   const navigate = useNavigate();
   
   // Stan na dane z backendu
-  const { data: countries = [], isLoading, isError: error } = useCountries();
+  const { data: allCountries = [], isLoading, isError: error } = useCountries();
+
+  const [gameCountries, setGameCountries] = useState<Country[]>([]);
+  const [gameStarted, setGameStarted] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -21,16 +24,38 @@ const Flags = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredQuestions, setAnsweredQuestions] = useState(0);
 
+  useEffect(() => {
+    if (allCountries.length > 0 && !gameStarted) {
+      startNewGame();
+      setGameStarted(true);
+    }
+  }, [allCountries, gameStarted]);
+
+  const startNewGame = () => {
+    if (allCountries.length === 0) return;
+    const gameSet = shuffleArray(allCountries).slice(0, 10);
+    setGameCountries(gameSet);
+    setCurrentIndex(0);
+    setScore(0);
+    setShowResult(false);
+    setSelectedAnswer(null);
+    setAnsweredQuestions(0);
+  };
+
+  const handleRestart = () => {
+    startNewGame();
+  };
+
   // Zabezpieczenie: jeśli lista pusta lub ładowanie
-  const currentCountry = countries[currentIndex];
+  const currentCountry = gameCountries[currentIndex];
 
   // 2. GENEROWANIE OPCJI (zaktualizowane pod nową listę)
   const options = useMemo(() => {
-    if (!currentCountry || countries.length === 0) return [];
+    if (!currentCountry || allCountries.length === 0) return [];
 
     const opts = [currentCountry.name];
     // Filtrujemy po kodzie (bo to unikalny identyfikator zamiast id)
-    const otherCountries = countries.filter(c => c.code !== currentCountry.code);
+    const otherCountries = allCountries.filter(c => c.code !== currentCountry.code);
     
     // Zabezpieczenie pętli while, jeśli mamy za mało krajów w bazie
     const maxOptions = Math.min(4, otherCountries.length + 1);
@@ -43,7 +68,7 @@ const Flags = () => {
     }
     
     return opts.sort(() => Math.random() - 0.5);
-  }, [currentIndex, countries, currentCountry]);
+  }, [currentIndex, allCountries, currentCountry]);
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer);
@@ -56,7 +81,7 @@ const Flags = () => {
   };
 
   const handleNext = () => {
-    if (currentIndex < countries.length - 1) {
+    if (currentIndex < gameCountries.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setShowResult(false);
       setSelectedAnswer(null);
@@ -65,21 +90,13 @@ const Flags = () => {
     }
   };
 
-  const handleRestart = () => {
-    setCurrentIndex(0);
-    setScore(0);
-    setShowResult(false);
-    setSelectedAnswer(null);
-    setAnsweredQuestions(0);
-  };
-
   // --- EKRAN ŁADOWANIA ---
-  if (isLoading) {
+  if (isLoading || !gameStarted) {
     return <LoadingScreen message="Ładowanie pytań z serwera..." />;
   }
 
   // --- EKRAN BŁĘDU ---
-  if (error || countries.length === 0) {
+  if (error || allCountries.length === 0) {
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
             <div className="text-center">
@@ -92,11 +109,11 @@ const Flags = () => {
   }
 
   // --- EKRAN WYNIKU ---
-  if (answeredQuestions === countries.length && countries.length > 0) {
+  if (answeredQuestions === gameCountries.length && gameCountries.length > 0) {
     return (
       <GameResult 
         score={score} 
-        totalQuestions={countries.length} 
+        totalQuestions={gameCountries.length} 
         onRestart={handleRestart} 
         emojiThresholds={{ low: "🚩", medium: "🗺️", high: "🎉" }}
         messages={{
@@ -118,7 +135,7 @@ const Flags = () => {
 
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">Nauka Flag 🚩</h1>
-          <p className="text-muted-foreground">Pytanie {currentIndex + 1} z {countries.length}</p>
+          <p className="text-muted-foreground">Pytanie {currentIndex + 1} z {gameCountries.length}</p>
           <p className="text-sm text-muted-foreground mt-2">Wynik: {score} / {answeredQuestions}</p>
         </div>
 
@@ -173,7 +190,7 @@ const Flags = () => {
                 </p>
                 <p className="text-muted-foreground">Stolica: {currentCountry.capital}</p>
                 <Button onClick={handleNext}>
-                  {currentIndex < countries.length - 1 ? "Następna flaga" : "Zobacz wynik"}
+                  {currentIndex < gameCountries.length - 1 ? "Następna flaga" : "Zobacz wynik"}
                 </Button>
               </div>
             )}
