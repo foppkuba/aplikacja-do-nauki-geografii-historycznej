@@ -2,40 +2,24 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
-import { Country } from "@/types";
+import { ArrowLeft, Check, X } from "lucide-react";
+import { useCountries } from "@/hooks/useCountries";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { GameResult } from "@/components/GameResult";
+import { getLargeFlagUrl } from "@/lib/utils";
+import { Country } from "@/types/Country";
 
 const Flags = () => {
   const navigate = useNavigate();
   
   // Stan na dane z backendu
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data: countries = [], isLoading, isError: error } = useCountries();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredQuestions, setAnsweredQuestions] = useState(0);
-
-  // 1. POBIERANIE DANYCH Z BACKENDU
-  useEffect(() => {
-    fetch("/api/game/quiz-data")
-      .then((res) => {
-        if (!res.ok) throw new Error("Błąd sieci");
-        return res.json();
-      })
-      .then((data) => {
-        setCountries(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Błąd pobierania quizu:", err);
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
 
   // Zabezpieczenie: jeśli lista pusta lub ładowanie
   const currentCountry = countries[currentIndex];
@@ -90,15 +74,8 @@ const Flags = () => {
   };
 
   // --- EKRAN ŁADOWANIA ---
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-primary" />
-          <p>Ładowanie pytań z serwera...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingScreen message="Ładowanie pytań z serwera..." />;
   }
 
   // --- EKRAN BŁĘDU ---
@@ -115,26 +92,19 @@ const Flags = () => {
   }
 
   // --- EKRAN WYNIKU ---
-  if (answeredQuestions === countries.length) {
+  if (answeredQuestions === countries.length && countries.length > 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <Button variant="ghost" onClick={() => navigate("/")} className="mb-6">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Powrót
-          </Button>
-          <Card className="p-8 text-center">
-            <CardContent className="space-y-6">
-              <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-3xl font-bold">Gratulacje!</h2>
-              <p className="text-xl">Twój wynik: {score} / {countries.length}</p>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={handleRestart}>Zagraj ponownie</Button>
-                <Button variant="outline" onClick={() => navigate("/")}>Wróć do menu</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <GameResult 
+        score={score} 
+        totalQuestions={countries.length} 
+        onRestart={handleRestart} 
+        emojiThresholds={{ low: "🚩", medium: "🗺️", high: "🎉" }}
+        messages={{
+          low: "Brawo! Pamiętaj, praktyka czyni mistrza!",
+          medium: "Świetnie! Prawie wszystkie flagi rozpoznane!",
+          high: "Gratulacje! Znasz perfekcyjnie wszystkie flagi!"
+        }}
+      />
     );
   }
 
@@ -156,7 +126,7 @@ const Flags = () => {
           <CardContent className="space-y-8">
             <div className="text-center space-y-4">
               <img 
-                src={`https://flagcdn.com/w640/${currentCountry.code.toLowerCase()}.png`} 
+                src={getLargeFlagUrl(currentCountry.code)} 
                 alt={`Flaga`}
                 className="mx-auto w-full max-w-md h-auto rounded-lg shadow-lg border"
               />
