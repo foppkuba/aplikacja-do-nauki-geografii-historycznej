@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
@@ -30,16 +30,8 @@ const Quiz = () => {
   const [isAnswered, setIsAnswered] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
 
-  // 1. Inicjalizacja gry po pobraniu danych
-  useEffect(() => {
-    if (allCountries.length > 0 && !gameStarted) {
-      startNewGame();
-      setGameStarted(true);
-    }
-  }, [allCountries, gameStarted]);
-
   // 2. Logika generowania pytań
-  const startNewGame = () => {
+  const startNewGame = React.useCallback(() => {
     if (allCountries.length < 4) return; // Zabezpieczenie: potrzeba min 4 krajów do losowania opcji
 
     // Mieszamy kraje
@@ -73,7 +65,15 @@ const Quiz = () => {
     setShowResult(false);
     setSelectedAnswer(null);
     setIsAnswered(false);
-  };
+  }, [allCountries]);
+
+  // 1. Inicjalizacja gry po pobraniu danych
+  useEffect(() => {
+    if (allCountries.length > 0 && !gameStarted) {
+      startNewGame();
+      setGameStarted(true);
+    }
+  }, [allCountries, gameStarted, startNewGame]);
 
   const handleAnswer = (answer: string) => {
     if (isAnswered) return;

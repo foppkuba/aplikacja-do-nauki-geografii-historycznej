@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
@@ -37,15 +37,7 @@ const MapGame = () => {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
 
-  // 1. Inicjalizacja gry po pobraniu danych
-  useEffect(() => {
-    if (allCountries.length > 0 && !gameStarted) {
-      startNewGame();
-      setGameStarted(true);
-    }
-  }, [allCountries, gameStarted]);
-
-  const startNewGame = () => {
+  const startNewGame = React.useCallback(() => {
     if (allCountries.length === 0) return;
     // Losujemy 10 krajów do gry
     const gameSet = shuffleArray(allCountries).slice(0, 10);
@@ -54,7 +46,15 @@ const MapGame = () => {
     setScore(0);
     setGameOver(false);
     setIsCorrect(null);
-  };
+  }, [allCountries]);
+
+  // 1. Inicjalizacja gry po pobraniu danych
+  useEffect(() => {
+    if (allCountries.length > 0 && !gameStarted) {
+      startNewGame();
+      setGameStarted(true);
+    }
+  }, [allCountries, gameStarted, startNewGame]);
 
   const handleRestart = () => {
     startNewGame();

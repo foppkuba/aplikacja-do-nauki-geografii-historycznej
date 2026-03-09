@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
@@ -24,14 +24,7 @@ const Flags = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredQuestions, setAnsweredQuestions] = useState(0);
 
-  useEffect(() => {
-    if (allCountries.length > 0 && !gameStarted) {
-      startNewGame();
-      setGameStarted(true);
-    }
-  }, [allCountries, gameStarted]);
-
-  const startNewGame = () => {
+  const startNewGame = React.useCallback(() => {
     if (allCountries.length === 0) return;
     const gameSet = shuffleArray(allCountries).slice(0, 10);
     setGameCountries(gameSet);
@@ -40,7 +33,14 @@ const Flags = () => {
     setShowResult(false);
     setSelectedAnswer(null);
     setAnsweredQuestions(0);
-  };
+  }, [allCountries]);
+
+  useEffect(() => {
+    if (allCountries.length > 0 && !gameStarted) {
+      startNewGame();
+      setGameStarted(true);
+    }
+  }, [allCountries, gameStarted, startNewGame]);
 
   const handleRestart = () => {
     startNewGame();
@@ -68,7 +68,7 @@ const Flags = () => {
     }
     
     return opts.sort(() => Math.random() - 0.5);
-  }, [currentIndex, allCountries, currentCountry]);
+  }, [allCountries, currentCountry]);
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer);
