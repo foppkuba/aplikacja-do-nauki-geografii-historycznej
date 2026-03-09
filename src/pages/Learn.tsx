@@ -1,30 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Country } from "@/types";
+import { useCountries } from "@/hooks/useCountries";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { getFlagUrl } from "@/lib/utils";
 
 const Learn = () => {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rawCountries = [], isLoading } = useCountries();
+  const countries = useMemo(() => {
+    return [...rawCountries].sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+  }, [rawCountries]);
 
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/game/quiz-data")
-      .then((res) => res.json())
-      .then((data) => {
-        const sortedData = data.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
-        setCountries(sortedData);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Błąd pobierania:", err);
-        setLoading(false);
-      });
-  }, []);
 
   // Szukamy wybranego kraju po kodzie (np. "PL")
   const country = selectedCountryCode 
@@ -32,12 +22,8 @@ const Learn = () => {
     : null;
 
   // --- EKRAN ŁADOWANIA ---
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingScreen message="Ładowanie biblioteki..." />;
   }
 
   // --- WIDOK SZCZEGÓŁÓW KRAJU (Gdy wybrano kraj) ---
@@ -65,9 +51,8 @@ const Learn = () => {
             >
               <div style={{ backfaceVisibility: "hidden" }}>
                 <CardHeader className="text-center pb-4">
-                  {/* ZMIANA: Flaga z CDN */}
                   <img 
-                    src={`https://flagcdn.com/w320/${country.code.toLowerCase()}.png`} 
+                    src={getFlagUrl(country.code)} 
                     alt={`Flaga ${country.name}`} 
                     className="w-48 h-auto object-cover rounded-lg shadow-lg mb-4 mx-auto border" 
                   />
@@ -185,7 +170,7 @@ const Learn = () => {
             >
               <CardHeader className="text-center">
                 <img 
-                   src={`https://flagcdn.com/w320/${country.code.toLowerCase()}.png`} 
+                   src={getFlagUrl(country.code)} 
                    alt={`Flaga ${country.name}`} 
                    className="w-24 h-16 object-cover rounded shadow mb-3 mx-auto border" 
                 />

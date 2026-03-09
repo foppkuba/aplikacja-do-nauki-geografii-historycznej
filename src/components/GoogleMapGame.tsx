@@ -63,7 +63,7 @@ const SimpleMapGame = ({ currentCountry, onCountryClick, isCorrect }: SimpleMapG
     setSelectedCountry(null);
   }, [currentCountry]);
 
-  const handleCountryClick = (geo: any) => {
+  const handleCountryClick = (geo: Record<string, any>) => {
     if (isCorrect !== null) return;
     
     const geoName = geo.properties.name || geo.properties.NAME || geo.properties.ADMIN;
@@ -79,7 +79,7 @@ const SimpleMapGame = ({ currentCountry, onCountryClick, isCorrect }: SimpleMapG
     }
   };
 
-  const getCountryStyle = (geo: any) => {
+  const getCountryStyle = (geo: Record<string, any>) => {
     const geoName = geo.properties.name || geo.properties.NAME || geo.properties.ADMIN;
     const targetGeoNames = countryNameMap[currentCountry.name] || [];
     const isTarget = targetGeoNames.includes(geoName);

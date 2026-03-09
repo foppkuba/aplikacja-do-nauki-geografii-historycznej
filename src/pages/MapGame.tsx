@@ -1,11 +1,15 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy, RotateCcw, Loader2 } from "lucide-react";
+import { ArrowLeft, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import SimpleMapGame from "@/components/GoogleMapGame";
-import { Country } from "@/types";
+import { useCountries } from "@/hooks/useCountries";
+import { LoadingScreen } from "@/components/LoadingScreen";
+import { GameResult } from "@/components/GameResult";
+import { getFlagUrl, shuffleArray } from "@/lib/utils";
+import { Country } from "@/types/Country";
 
 interface GameCountry extends Country {
   flag: string;
@@ -16,53 +20,44 @@ interface GameCountry extends Country {
 const EXCLUDED_CODES = ["MT", "MC", "VA", "SM", "AD", "LI"];
 
 const MapGame = () => {
-  const [allCountries, setAllCountries] = useState<GameCountry[]>([]);
+  const { data: rawCountries = [], isLoading } = useCountries();
+  
+  const allCountries = useMemo(() => {
+    const formattedData: GameCountry[] = rawCountries.map((item) => ({
+      ...item,
+      flag: getFlagUrl(item.code)
+    }));
+    return formattedData.filter(country => !EXCLUDED_CODES.includes(country.code));
+  }, [rawCountries]);
+
   const [shuffledCountries, setShuffledCountries] = useState<GameCountry[]>([]);
   const [currentCountryIndex, setCurrentCountryIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [gameStarted, setGameStarted] = useState(false);
 
-  // 1. Pobieranie danych z Backendu
-  useEffect(() => {
-    fetch("/api/game/quiz-data")
-      .then((res) => res.json())
-      .then((data: Country[]) => {
-        
-        // Krok A: Formatowanie danych (dodanie flagi)
-        const formattedData: GameCountry[] = data.map((item) => ({
-          ...item,
-          flag: `https://flagcdn.com/w320/${item.code.toLowerCase()}.png`
-        }));
-        
-        const playableCountries = formattedData.filter(country => 
-            !EXCLUDED_CODES.includes(country.code)
-        );
-
-        setAllCountries(playableCountries);
-        startNewGame(playableCountries);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Błąd pobierania danych:", err);
-        setLoading(false);
-      });
-  }, []);
-
-  const startNewGame = (sourceData: GameCountry[]) => {
-    if (sourceData.length === 0) return;
+  const startNewGame = React.useCallback(() => {
+    if (allCountries.length === 0) return;
     // Losujemy 10 krajów do gry
-    const gameSet = [...sourceData].sort(() => Math.random() - 0.5).slice(0, 10);
+    const gameSet = shuffleArray(allCountries).slice(0, 10);
     setShuffledCountries(gameSet);
     setCurrentCountryIndex(0);
     setScore(0);
     setGameOver(false);
     setIsCorrect(null);
-  };
+  }, [allCountries]);
+
+  // 1. Inicjalizacja gry po pobraniu danych
+  useEffect(() => {
+    if (allCountries.length > 0 && !gameStarted) {
+      startNewGame();
+      setGameStarted(true);
+    }
+  }, [allCountries, gameStarted, startNewGame]);
 
   const handleRestart = () => {
-    startNewGame(allCountries);
+    startNewGame();
   };
 
   const currentCountry = shuffledCountries[currentCountryIndex];
@@ -92,48 +87,19 @@ const MapGame = () => {
   };
 
   // --- EKRAN ŁADOWANIA ---
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+  if (isLoading || !gameStarted) {
+    return <LoadingScreen />;
   }
 
   // --- EKRAN KONIEC GRY ---
   if (gameOver) {
-    const percentage = (score / shuffledCountries.length) * 100;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-secondary/10 via-background to-primary/10 flex items-center justify-center p-4">
-        <Card className="max-w-2xl w-full text-center">
-          <CardHeader>
-            <div className="text-6xl mb-4">
-              {percentage >= 80 ? "🌍" : percentage >= 60 ? "🗺️" : "📍"}
-            </div>
-            <CardTitle className="text-4xl mb-2">Gra zakończona!</CardTitle>
-            <CardDescription className="text-xl">
-              Twój wynik: {score} / {shuffledCountries.length}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="text-5xl font-bold text-secondary">
-              {percentage.toFixed(0)}%
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button onClick={handleRestart} size="lg">
-                <RotateCcw className="mr-2 h-5 w-5" />
-                Zagraj ponownie
-              </Button>
-              <Link to="/">
-                <Button variant="outline" size="lg">
-                  <ArrowLeft className="mr-2 h-5 w-5" />
-                  Strona główna
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <GameResult 
+        score={score} 
+        totalQuestions={shuffledCountries.length} 
+        onRestart={handleRestart} 
+        emojiThresholds={{ low: "📍", medium: "🗺️", high: "🌍" }}
+      />
     );
   }
 
